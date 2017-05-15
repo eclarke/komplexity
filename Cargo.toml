@@ -6,5 +6,5 @@ authors = ["Erik Clarke <erikclarke@fastmail.com>"]
 [dependencies]
 bio = "*"
 clap = "*"
-indicatif = "0.4"
 fnv = "1.0"
+itertools = "*"
