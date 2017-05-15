@@ -5,8 +5,10 @@ authors = ["Erik Clarke <erikclarke@fastmail.com>"]
 
 [dependencies]
 bio = "*"
-clap = {version="2.*", features=["yaml"]}
+clap = "2.24"
 fnv = "1.0"
-itertools = "*"
-rayon="*"
+
+[[bin]]
+name = "kz"
+path = "src/main.rs"
 
