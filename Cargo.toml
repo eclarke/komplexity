@@ -5,6 +5,8 @@ authors = ["Erik Clarke <erikclarke@fastmail.com>"]
 
 [dependencies]
 bio = "*"
-clap = "*"
+clap = {version="2.*", features=["yaml"]}
 fnv = "1.0"
 itertools = "*"
+rayon="*"
+
