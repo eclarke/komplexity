@@ -1,7 +1,6 @@
 extern crate bio;
 extern crate clap;
 extern crate fnv;
-extern crate rayon;
 
 use std::vec::Vec;
 use std::io::{self, BufRead};
