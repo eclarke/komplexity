@@ -1,9 +1,10 @@
 extern crate bio;
 extern crate clap;
 extern crate fnv;
+extern crate flate2;
 
 use std::vec::Vec;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use std::ops::Div;
 use std::cmp::Ordering;
 
@@ -11,9 +12,12 @@ use bio::alphabets;
 use bio::alphabets::RankTransform;
 use bio::io::fastq;
 
+use fnv::FnvHashSet;
+
 use clap::{App, Arg, ArgMatches};
 
-use fnv::FnvHashSet;
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
 
 fn main() {
 
@@ -64,7 +68,7 @@ fn calculate(args: &ArgMatches) {
 
     freqs
         .iter()
-        .map(|kf| println!("{}\t{:.4}", kf.id, kf.score))
+        .map(|kf| println!("{}\t{:?}\t{:?}", kf.id, kf.freq, kf.len))
         .collect::<Vec<()>>();
 
 }
@@ -124,23 +128,21 @@ impl Score {
 #[derive(Debug)]
 struct KFrequencies {
     id: String,
-    k: u32,
-    freq: usize,
     len: usize,
-    score: f64,
+    // size: usize,
+    freq: usize
 }
 
 impl KFrequencies {
     fn new(k: u32, rank: &RankTransform, r: fastq::Record) -> Self {
-        let freq = unique_qgrams(r.seq(), k, rank);
         let len = r.seq().len();
-        let score = (freq as f64) / (len as f64);
+        let freq = unique_qgrams(r.seq(), k, rank);
+        // let size = compress(r.seq());
         KFrequencies {
             id: r.id().unwrap_or_default().to_owned(),
-            k,
-            freq,
             len,
-            score,
+            // size,
+            freq
         }
     }
 }
@@ -151,3 +153,9 @@ fn unique_qgrams(text: &[u8], q: u32, rank: &RankTransform) -> usize {
         .len()
 }
 
+fn compress(seq: &[u8]) -> usize {
+    let mut e = ZlibEncoder::new(Vec::new(), Compression::Default);
+    e.write(seq).unwrap();
+    let bytes = e.finish().unwrap();
+    bytes.len()
+}
