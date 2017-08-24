@@ -7,10 +7,11 @@ use std::vec::Vec;
 use std::io::{self, BufRead, Write};
 use std::ops::Div;
 use std::cmp::Ordering;
+use std::str::FromStr;
 
 use bio::alphabets;
 use bio::alphabets::RankTransform;
-use bio::io::fastq;
+use bio::io::{fastq, fasta};
 
 use fnv::FnvHashSet;
 
@@ -28,6 +29,9 @@ fn main() {
                 .takes_value(true)
                 .help("length of k-mer to use")
                 .default_value("4")))
+            .arg(Arg::with_name("fasta")
+                .takes_value(false)
+                .help("input is in fasta format"))
         .subcommand(App::new("filter")
             .arg(Arg::with_name("threshold")
                 .short("t")
@@ -57,15 +61,24 @@ fn calculate(args: &ArgMatches) {
         .parse()
         .expect("Need an integer!");
 
-    let fq_records = fastq::Reader::new(io::stdin()).records();
+    let freqs: Vec<KFrequencies>;
     let alphabet = alphabets::dna::iupac_alphabet();
     let rank = RankTransform::new(&alphabet);
 
-    let freqs: Vec<KFrequencies> = fq_records
-        .map(|r| r.expect("Error reading FASTQ record"))
-        .map(|r| KFrequencies::new(k, &rank, r))
-        .collect();
-
+    if args.is_present("fasta") {
+        let fa_records = fasta::Reader::new(io::stdin()).records();
+        freqs = fa_records
+            .map(|r| r.expect("Error reading FASTQ record"))
+            .map(|r| KFrequencies::new(k, &rank, r.seq(), r.id().unwrap()))
+            .collect();
+    } else {
+        let fq_records = fastq::Reader::new(io::stdin()).records();
+        freqs = fq_records
+            .map(|r| r.expect("Error reading FASTQ record"))
+            .map(|r| KFrequencies::new(k, &rank, r.seq(), r.id().unwrap()))
+            .collect();
+    }
+    
     freqs
         .iter()
         .map(|kf| println!("{}\t{:?}\t{:?}", kf.id, kf.freq, kf.len))
@@ -134,12 +147,12 @@ struct KFrequencies {
 }
 
 impl KFrequencies {
-    fn new(k: u32, rank: &RankTransform, r: fastq::Record) -> Self {
-        let len = r.seq().len();
-        let freq = unique_qgrams(r.seq(), k, rank);
+    fn new(k: u32, rank: &RankTransform, seq: &[u8], id: &str) -> Self {
+        let len = seq.len();
+        let freq = unique_qgrams(seq, k, rank);
         // let size = compress(r.seq());
         KFrequencies {
-            id: r.id().unwrap_or_default().to_owned(),
+            id: String::from_str(id).unwrap(),
             len,
             // size,
             freq
