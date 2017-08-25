@@ -19,14 +19,18 @@ If Cargo's default bin directory is in your path (usually `$HOME/.cargo/bin`), y
 ## Usage
 
 ```sh
-kz calculate < seqs.fq | kz filter > ids_passing_filter.txt
+# For fastq files:
+kz < seqs.fq
+# For fasta files:
+kz --fasta < seqs.fa
+# Vary length of k:
+kz -k5 < seqs.fq
 ```
 
-### kz-calculate
-For a given _k_, this tool calculates the number of unique _k_-mers in each sequence, normalized by the sequence length.
+For a given _k_, default 4, this tool calculates the number of unique _k_-mers in each sequence, normalized by the sequence length.
 
-The output is a list of sequence IDs from the fastq file with the normalized frequency.
+The output is a list of sequence IDs from the fastq file with the length of the sequence, the number of unique _k_-mers in the sequence, and the number of unique _k_-mers/length (normalized complexity) in a tab-delimited format to stout.
 
-### kz-filter
-This subcommand takes the input of `kz calculate`, calculates a z-score for each sequence, and outputs only those IDs 
-whose z-scores are higher than the threshold specified.
+## So what?
+
+We've noticed that, for _k_=4, a normalized complexity score of < 0.55 suggests strongly that the sequence is a low-complexity repeat sequence. This is true across many different samples, predominantly tested on Illumina reads with a length <= 126bp. 
