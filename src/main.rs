@@ -75,10 +75,20 @@ struct KFrequencies {
     freq: usize
 }
 
+#[derive(Debug)]
+struct Interval {
+    start: usize,
+    end: usize
+}
+
 impl KFrequencies {
-    fn new(k: u32, rank: &RankTransform, seq: &[u8], id: &str) -> Self {
+    fn new(k: u32, rank: &RankTransform, seq: &[u8], id: &str, ) -> Self {
         let len = seq.len();
         let freq = unique_qgrams(seq, k, rank);
+        let intervals = find_lc_regions(seq, k, rank, 32);
+        println!("{:?}", intervals);
+        // let lc_regions = collapse_regions(starts, ends);
+        // println!("{:?}", lc_regions);
         KFrequencies {
             id: String::from_str(id).unwrap(),
             len,
@@ -91,4 +101,41 @@ fn unique_qgrams(text: &[u8], q: u32, rank: &RankTransform) -> usize {
     rank.qgrams(q, text)
         .collect::<FnvHashSet<usize>>()
         .len()
+}
+
+fn find_lc_regions(text: &[u8], q: u32, rank: &RankTransform, window_size: usize) -> Vec<Interval> {
+    // There are l-k+1 k-grams in a sequence of length l
+    let qgrams = rank.qgrams(q, text).collect::<Vec<usize>>();
+    let mut intervals: Vec<Interval> = Vec::new();
+    for (idx, window) in qgrams.as_slice().windows(window_size).enumerate() {
+        let n_unique = window.into_iter().collect::<FnvHashSet<&usize>>().len();
+        let window_complexity = n_unique as f64 / window_size as f64;
+        if window_complexity < 0.55 {
+            let start = idx;
+            let end = idx + (window_size - 1 + q as usize);
+            intervals.push(Interval{ start, end });
+        }
+    }
+    return intervals;
+}
+
+fn collapse_intervals(intervals: Vec<Interval>) -> Vec<Interval> {
+    let mut collapsed: Vec<Interval> = Vec::new();
+    let mut last = 0;
+    let mut len = 0;
+    for idx in starts {
+        if idx == last+1 {
+            len += 1;
+        } else {
+            if len > 0 {
+                collapsed.push(len);    
+            }        
+            len = 0;
+        }
+        last = idx;
+    }
+    if len > 0 {
+        collapsed.push(len);
+    }
+    return collapsed;
 }
