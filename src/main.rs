@@ -86,9 +86,8 @@ impl KFrequencies {
         let len = seq.len();
         let freq = unique_qgrams(seq, k, rank);
         let intervals = find_lc_regions(seq, k, rank, 32);
-        println!("{:?}", intervals);
-        // let lc_regions = collapse_regions(starts, ends);
-        // println!("{:?}", lc_regions);
+        let lc_regions = collapse_intervals(intervals);
+        println!("{:?}", lc_regions);
         KFrequencies {
             id: String::from_str(id).unwrap(),
             len,
@@ -121,21 +120,18 @@ fn find_lc_regions(text: &[u8], q: u32, rank: &RankTransform, window_size: usize
 
 fn collapse_intervals(intervals: Vec<Interval>) -> Vec<Interval> {
     let mut collapsed: Vec<Interval> = Vec::new();
-    let mut last = 0;
-    let mut len = 0;
-    for idx in starts {
-        if idx == last+1 {
-            len += 1;
-        } else {
-            if len > 0 {
-                collapsed.push(len);    
-            }        
-            len = 0;
+    let mut intervals = intervals.into_iter();
+    if let Some(mut current) = intervals.next() {
+        for interval in intervals {
+            if interval.start < current.end {
+                current.end = interval.end;
+            } else {
+                collapsed.push(current);
+                current = interval;
+            }
         }
-        last = idx;
+        collapsed.push(current);
     }
-    if len > 0 {
-        collapsed.push(len);
-    }
+
     return collapsed;
 }
