@@ -17,7 +17,7 @@ use clap::{App, Arg};
 fn main() {
 
     let args = App::new("kz")
-        .about("Calculate the overall complexity of a sequence")
+        .about("Calculate the overall complexity of a sequence. Reads from stdin and writes to stdout.")
         .arg(Arg::with_name("k")
             .short("k")
             .takes_value(true)
@@ -72,7 +72,13 @@ fn main() {
         .unwrap()
         .trim()
         .parse()
-        .expect("Need an integer!");
+        .expect("k must be an integer");
+
+    if k > 12 {
+        // Because we use the extended IUPAC alphabet, we're restricted to
+        // smaller ks (though this doesn't matter for our purposes)
+        error_exit("-k must be less than or equal to 12")
+    }
 
     let threshold: f64 = args
         .value_of("threshold")
@@ -126,7 +132,7 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
             records
                 .map(|r| r.expect("Error reading FASTA record"))
                 .map(|r| {
-                    let id = r.id().unwrap();
+                    let id = r.id();
                     let seq = r.seq();
                     match task {
                         Task::Mask => {
@@ -149,7 +155,7 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
             records
                 .map(|r| r.expect("Error reading FASTQ record"))
                 .map(|r| {
-                    let id = r.id().unwrap();
+                    let id = r.id();
                     let seq = r.seq();
                     match task {
                         Task::Mask => {

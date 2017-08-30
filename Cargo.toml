@@ -1,12 +1,12 @@
 [package]
 name = "komplexity"
-version = "0.1.0"
+version = "0.2.1"
 authors = ["Erik Clarke <erikclarke@fastmail.com>"]
 
 [dependencies]
-bio = "*"
-clap = "2.24"
-fnv = "1.0"
+bio = "~0.14"
+clap = "~2.24"
+fnv = "~1.0"
 
 [[bin]]
 name = "kz"

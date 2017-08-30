@@ -18,7 +18,7 @@ If Cargo's default bin directory is in your path (usually `$HOME/.cargo/bin`), y
 
 ## Usage
 
-This tool has two modes: measuring (default) and masking. 
+This tool has two modes: measuring (default) and masking. Both modes read from standard in and write to standard out.
 
 ### Measuring
 
