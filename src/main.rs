@@ -4,6 +4,7 @@ extern crate fnv;
 
 use std::vec::Vec;
 use std::io;
+use std::iter;
 
 use bio::alphabets;
 use bio::alphabets::RankTransform;
@@ -16,37 +17,40 @@ use clap::{App, Arg};
 fn main() {
 
     let args = App::new("kz")
-            .about("Calculate the overall complexity of a sequence")
-            .arg(Arg::with_name("k")
-                .short("k")
-                .takes_value(true)
-                .help("length of k-mer to use")
-                .default_value("4"))
-            .arg(Arg::with_name("fasta")
-                .long("fasta")
-                .short("f")
-                .takes_value(false)
-                .help("input is in fasta format"))
-            .arg(Arg::with_name("window_size")
-                .long("window_size")
-                .short("w")
-                .takes_value(true)
-                .default_value("32")
-                .help("window size for masking"))
-            .arg(Arg::with_name("threshold")
-                .long("threshold")
-                .short("t")
-                .takes_value(true)
-                .default_value("0.55")
-                .help("complexity threshold ([0:1], 0 = most stringent, 1 = least)"))
-            .arg(Arg::with_name("mask")
-                .long("mask")
-                .short("m")
-                .takes_value(false)
-                .help("use sliding window to mask low-complexity regions")
-            )
-
-        .get_matches();
+        .about("Calculate the overall complexity of a sequence")
+        .arg(Arg::with_name("k")
+            .short("k")
+            .takes_value(true)
+            .help("length of k-mer to use")
+            .default_value("4"))
+        .arg(Arg::with_name("fasta")
+            .long("fasta")
+            .short("f")
+            .takes_value(false)
+            .help("input is in fasta format"))
+        .arg(Arg::with_name("window_size")
+            .long("window_size")
+            .short("w")
+            .takes_value(true)
+            .default_value("32")
+            .help("window size for masking"))
+        .arg(Arg::with_name("threshold")
+            .long("threshold")
+            .short("t")
+            .takes_value(true)
+            .default_value("0.55")
+            .help("complexity threshold ([0:1], 0 = most stringent, 1 = least)"))
+        .arg(Arg::with_name("mask")
+            .long("mask")
+            .short("m")
+            .takes_value(false)
+            .help("use sliding window to mask low-complexity regions"))
+        .arg(Arg::with_name("lower_case")
+            .long("lower_case")
+            .short("l")
+            .takes_value(false)
+            .help("mask using lower-case symbols rather than Ns"))
+    .get_matches();
 
     let record_type = match args.is_present("fasta") {
         true => RecordType::Fasta,
@@ -56,6 +60,11 @@ fn main() {
     let task = match args.is_present("mask") {
         true => Task::Mask,
         false => Task::Measure
+    };
+
+    let mask_type = match args.is_present("lower_case") {
+        true => MaskType::LowerCase,
+        false => MaskType::N
     };
 
     let k: u32 = args
@@ -83,7 +92,7 @@ fn main() {
         .parse()
         .expect("'--window_size' must be an integer greater than 0");
 
-    complexity(record_type, task, k, threshold, window_size);
+    complexity(record_type, task, k, threshold, window_size, mask_type);
 }
 
 #[derive(Debug)]
@@ -102,7 +111,12 @@ enum Task {
     Measure
 }
 
-fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, window_size: usize) {
+enum MaskType {
+    N,
+    LowerCase
+}
+
+fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, window_size: usize, mask_type: MaskType) {
     let alphabet = alphabets::dna::iupac_alphabet();
     let rank = RankTransform::new(&alphabet);
     match record_type {
@@ -116,7 +130,7 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
                     let seq = r.seq();
                     match task {
                         Task::Mask => {
-                            let seq = mask_sequence(seq, &rank, k, threshold, window_size);
+                            let seq = mask_sequence(seq, &rank, k, threshold, window_size, &mask_type);
                             writer.write(id, r.desc(), &seq).unwrap();
                         },
                         Task::Measure => {
@@ -139,7 +153,7 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
                     let seq = r.seq();
                     match task {
                         Task::Mask => {
-                            let seq = mask_sequence(seq, &rank, k, threshold, window_size);
+                            let seq = mask_sequence(seq, &rank, k, threshold, window_size, &mask_type);
                             writer.write(id, r.desc(), &seq, r.qual()).unwrap();
                         },
                         Task::Measure => {
@@ -154,9 +168,9 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
     }
 }
 
-fn mask_sequence(seq: &[u8], rank: &RankTransform, k: u32, threshold: f64, window_size: usize) -> Vec<u8> {
+fn mask_sequence(seq: &[u8], rank: &RankTransform, k: u32, threshold: f64, window_size: usize, mask_type: &MaskType) -> Vec<u8> {
     let intervals = lc_intervals(seq, k, rank, threshold, window_size);
-    mask_intervals(seq, intervals)
+    mask_intervals(seq, intervals, mask_type)
 }
 
 fn unique_kmers(text: &[u8], k: u32, rank: &RankTransform) -> usize {
@@ -223,15 +237,19 @@ fn collapse_intervals(intervals: Vec<Interval>) -> Vec<Interval> {
     return collapsed;
 }
 
-fn mask_intervals(seq: &[u8], intervals: Vec<Interval>) -> Vec<u8> {
+fn mask_intervals(seq: &[u8], intervals: Vec<Interval>, mask_type: &MaskType) -> Vec<u8> {
     let mut new_seq: Vec<u8> = Vec::with_capacity(seq.len());
     let mut last = Interval{start: 0, end: 0};
     for interval in intervals {
         let intervening = &seq[last.end .. interval.start];
         new_seq.extend_from_slice(intervening);
-        for _ in interval.start..interval.end {
-            new_seq.push(b'N');
-        }
+        match *mask_type {
+            MaskType::LowerCase => new_seq.append(&mut lowercase(&seq[interval.start..interval.end])),
+            MaskType::N => new_seq.extend(iter::repeat(b'N').take(interval.end-interval.start)),
+        };
+        // for _ in interval.start..interval.end {
+        //     new_seq.push(b'N');
+        // }
         last = interval;
     }
     let end = &seq[last.end..];
@@ -242,4 +260,32 @@ fn mask_intervals(seq: &[u8], intervals: Vec<Interval>) -> Vec<u8> {
 fn error_exit(msg: &str) {
     eprintln!("{}", msg);
     std::process::exit(1);
+}
+
+fn lowercase(seq: &[u8]) -> Vec<u8> {
+    // ACGTRYSWKMBDHVNZ
+    let mut new = Vec::with_capacity(seq.len());
+    for b in seq {
+        let b = match *b {
+            b'A' => b'a',
+            b'C' => b'c',
+            b'G' => b'g',
+            b'T' => b't',
+            b'R' => b'r',
+            b'Y' => b'y',
+            b'S' => b's',
+            b'W' => b'w',
+            b'K' => b'k',
+            b'M' => b'm',
+            b'B' => b'b',
+            b'D' => b'd',
+            b'H' => b'h',
+            b'V' => b'v',
+            b'N' => b'n',
+            b'Z' => b'z',
+            _ => *b,
+        };
+        new.push(b);
+    }
+    return new;
 }
