@@ -1,8 +1,8 @@
-## komplexity
+# komplexity
 
-A command-line tool built in Rust to quickly calculate and filter low-complexity sequences from a FASTQ file.
+A command-line tool built in Rust to quickly calculate and/or mask low-complexity sequences from a FAST[A/Q] file. This uses the number of unique _k_-mers over a sequence divided by the length to assess complexity.
 
-
+We've noticed that, for _k_=4, a normalized complexity score of < 0.55 suggests across a 64-120bp region strongly that the sequence is a low-complexity repeat sequence. 
 
 ## Installation
 
@@ -18,6 +18,12 @@ If Cargo's default bin directory is in your path (usually `$HOME/.cargo/bin`), y
 
 ## Usage
 
+This tool has two modes: measuring (default) and masking. 
+
+### Measuring
+
+Measuring mode reports the length of a sequence, the number of unique kmers in that sequence, and the normalized complexity (unique kmers / length).
+
 ```sh
 # For fastq files:
 kz < seqs.fq
@@ -27,10 +33,22 @@ kz --fasta < seqs.fa
 kz -k5 < seqs.fq
 ```
 
-For a given _k_, default 4, this tool calculates the number of unique _k_-mers in each sequence, normalized by the sequence length.
-
 The output is a list of sequence IDs from the fastq file with the length of the sequence, the number of unique _k_-mers in the sequence, and the number of unique _k_-mers/length (normalized complexity) in a tab-delimited format to stout.
+
+### Masking
+
+Masking mode (`--mask`) outputs the input sequences with low-complexity regions masked by Ns. The low-complexity regions are found using a sliding window (of size `--window_size`) over the sequence; the complexity of the subsequence is assessed as in the "measuring" mode. The threshold below which the sequence is masked is configurable through the `--threshold` parameter and should be a value between 0-1 (least to most masking). 
+
+```sh
+# For fastq files:
+kz --mask < seqs.fq
+# For fasta files:
+kz --mask --fasta < seqs.fa
+# Vary threshold:
+kz --mask --threshold 0.7 < seqs.fq
+# Vary window size:
+kz --mask --window_size 64 < seqs.fq
+```
 
 ## So what?
 
-We've noticed that, for _k_=4, a normalized complexity score of < 0.55 suggests strongly that the sequence is a low-complexity repeat sequence. This is true across many different samples, predominantly tested on Illumina reads with a length <= 126bp. 

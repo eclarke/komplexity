@@ -4,7 +4,6 @@ extern crate fnv;
 
 use std::vec::Vec;
 use std::io;
-use std::str::FromStr;
 
 use bio::alphabets;
 use bio::alphabets::RankTransform;
@@ -12,11 +11,12 @@ use bio::io::{fastq, fasta};
 
 use fnv::FnvHashSet;
 
-use clap::{App, Arg, ArgMatches};
+use clap::{App, Arg};
 
 fn main() {
 
-    let args = App::new("Measure/filter sequence complexity based on unique k-mers")
+    let args = App::new("kz")
+            .about("Calculate the overall complexity of a sequence")
             .arg(Arg::with_name("k")
                 .short("k")
                 .takes_value(true)
@@ -27,52 +27,63 @@ fn main() {
                 .short("f")
                 .takes_value(false)
                 .help("input is in fasta format"))
+            .arg(Arg::with_name("window_size")
+                .long("window_size")
+                .short("w")
+                .takes_value(true)
+                .default_value("32")
+                .help("window size for masking"))
+            .arg(Arg::with_name("threshold")
+                .long("threshold")
+                .short("t")
+                .takes_value(true)
+                .default_value("0.55")
+                .help("complexity threshold ([0:1], 0 = most stringent, 1 = least)"))
+            .arg(Arg::with_name("mask")
+                .long("mask")
+                .short("m")
+                .takes_value(false)
+                .help("use sliding window to mask low-complexity regions")
+            )
+
         .get_matches();
 
-    calculate(&args);
-}
+    let record_type = match args.is_present("fasta") {
+        true => RecordType::Fasta,
+        false => RecordType::Fastq,
+    };
 
-fn calculate(args: &ArgMatches) {
+    let task = match args.is_present("mask") {
+        true => Task::Mask,
+        false => Task::Measure
+    };
 
     let k: u32 = args
         .value_of("k")
-        .expect("missing k!")
+        .unwrap()
         .trim()
         .parse()
         .expect("Need an integer!");
 
-    let window_size = k*4;
-
-    let freqs: Vec<KFrequencies>;
-    let alphabet = alphabets::dna::iupac_alphabet();
-    let rank = RankTransform::new(&alphabet);
-
-    if args.is_present("fasta") {
-        let fa_records = fasta::Reader::new(io::stdin()).records();
-        freqs = fa_records
-            .map(|r| r.expect("Error reading FASTQ record"))
-            .map(|r| KFrequencies::new(k, &rank, r.seq(), r.id().unwrap()))
-            .collect();
-    } else {
-        let fq_records = fastq::Reader::new(io::stdin()).records();
-        freqs = fq_records
-            .map(|r| r.expect("Error reading FASTQ record"))
-            .map(|r| KFrequencies::new(k, &rank, r.seq(), r.id().unwrap()))
-            .collect();
+    let threshold: f64 = args
+        .value_of("threshold")
+        .unwrap()
+        .trim()
+        .parse()
+        .expect("'--threshold' must be a number between 0-1");
+    
+    if threshold < 0.0 || threshold > 1.0 {
+        error_exit("'--threshold' must be a number between 0-1");
     }
     
-    freqs
-        .iter()
-        .map(|kf| println!("{}\t{:?}\t{:?}", kf.id, kf.freq, kf.len))
-        .collect::<Vec<()>>();
+    let window_size: usize = args
+        .value_of("window_size")
+        .unwrap()
+        .trim()
+        .parse()
+        .expect("'--window_size' must be an integer greater than 0");
 
-}
-
-#[derive(Debug)]
-struct KFrequencies {
-    id: String,
-    len: usize,
-    freq: usize
+    complexity(record_type, task, k, threshold, window_size);
 }
 
 #[derive(Debug)]
@@ -81,41 +92,92 @@ struct Interval {
     end: usize
 }
 
-impl KFrequencies {
-    fn new(k: u32, rank: &RankTransform, seq: &[u8], id: &str, ) -> Self {
-        let len = seq.len();
-        let freq = unique_qgrams(seq, k, rank);
-        let intervals = find_lc_regions(seq, k, rank, 32);
-        let lc_regions = collapse_intervals(intervals);
-        println!("{:?}", lc_regions);
-        KFrequencies {
-            id: String::from_str(id).unwrap(),
-            len,
-            freq
+enum RecordType {
+    Fasta,
+    Fastq
+}
+
+enum Task {
+    Mask,
+    Measure
+}
+
+fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, window_size: usize) {
+    let alphabet = alphabets::dna::iupac_alphabet();
+    let rank = RankTransform::new(&alphabet);
+    match record_type {
+        RecordType::Fasta => {
+            let mut writer = fasta::Writer::new(io::stdout());
+            let records = fasta::Reader::new(io::stdin()).records();
+            records
+                .map(|r| r.expect("Error reading FASTA record"))
+                .map(|r| {
+                    let id = r.id().unwrap();
+                    let seq = r.seq();
+                    match task {
+                        Task::Mask => {
+                            let seq = mask_sequence(seq, &rank, k, threshold, window_size);
+                            writer.write(id, r.desc(), &seq).unwrap();
+                        },
+                        Task::Measure => {
+                            let length = seq.len();
+                            let kmers = unique_kmers(seq, k, &rank);
+                            println!("{}\t{}\t{}\t{}", id, length, kmers, kmers as f64 / length as f64);
+                        }
+                    } 
+                    
+                })
+                .collect::<Vec<()>>();
+        }, 
+        RecordType::Fastq => {
+            let mut writer = fastq::Writer::new(io::stdout());
+            let records = fastq::Reader::new(io::stdin()).records();
+            records
+                .map(|r| r.expect("Error reading FASTQ record"))
+                .map(|r| {
+                    let id = r.id().unwrap();
+                    let seq = r.seq();
+                    match task {
+                        Task::Mask => {
+                            let seq = mask_sequence(seq, &rank, k, threshold, window_size);
+                            writer.write(id, r.desc(), &seq, r.qual()).unwrap();
+                        },
+                        Task::Measure => {
+                            let length = seq.len();
+                            let kmers = unique_kmers(seq, k, &rank);
+                            println!("{}\t{}\t{}\t{}", id, length, kmers, kmers as f64 / length as f64);
+                        }
+                    } 
+                })
+                .collect::<Vec<()>>();
         }
     }
 }
 
-fn unique_qgrams(text: &[u8], q: u32, rank: &RankTransform) -> usize {
-    rank.qgrams(q, text)
+fn mask_sequence(seq: &[u8], rank: &RankTransform, k: u32, threshold: f64, window_size: usize) -> Vec<u8> {
+    let intervals = lc_intervals(seq, k, rank, threshold, window_size);
+    mask_intervals(seq, intervals)
+}
+
+fn unique_kmers(text: &[u8], k: u32, rank: &RankTransform) -> usize {
+    rank.qgrams(k, text)
         .collect::<FnvHashSet<usize>>()
         .len()
 }
 
-fn find_lc_regions(text: &[u8], q: u32, rank: &RankTransform, window_size: usize) -> Vec<Interval> {
-    // There are l-k+1 k-grams in a sequence of length l
-    let qgrams = rank.qgrams(q, text).collect::<Vec<usize>>();
+fn lc_intervals(text: &[u8], q: u32, rank: &RankTransform, threshold: f64, window_size: usize) -> Vec<Interval> {
+    let qgrams: Vec<usize> = rank.qgrams(q, text).into_iter().collect();
     let mut intervals: Vec<Interval> = Vec::new();
     for (idx, window) in qgrams.as_slice().windows(window_size).enumerate() {
         let n_unique = window.into_iter().collect::<FnvHashSet<&usize>>().len();
         let window_complexity = n_unique as f64 / window_size as f64;
-        if window_complexity < 0.55 {
+        if window_complexity < threshold {
             let start = idx;
             let end = idx + (window_size - 1 + q as usize);
             intervals.push(Interval{ start, end });
         }
     }
-    return intervals;
+    return collapse_intervals(intervals);
 }
 
 fn collapse_intervals(intervals: Vec<Interval>) -> Vec<Interval> {
@@ -132,6 +194,26 @@ fn collapse_intervals(intervals: Vec<Interval>) -> Vec<Interval> {
         }
         collapsed.push(current);
     }
-
     return collapsed;
+}
+
+fn mask_intervals(seq: &[u8], intervals: Vec<Interval>) -> Vec<u8> {
+    let mut new_seq: Vec<u8> = Vec::with_capacity(seq.len());
+    let mut last = Interval{start: 0, end: 0};
+    for interval in intervals {
+        let intervening = &seq[last.end .. interval.start];
+        new_seq.extend_from_slice(intervening);
+        for _ in interval.start..interval.end {
+            new_seq.push(b'N');
+        }
+        last = interval;
+    }
+    let end = &seq[last.end..];
+    new_seq.extend_from_slice(end);
+    return new_seq;
+}
+
+fn error_exit(msg: &str) {
+    eprintln!("{}", msg);
+    std::process::exit(1);
 }
