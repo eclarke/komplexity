@@ -9,7 +9,7 @@ use bio::alphabets;
 use bio::alphabets::RankTransform;
 use bio::io::{fastq, fasta};
 
-use fnv::FnvHashSet;
+use fnv::{FnvHashSet, FnvHashMap};
 
 use clap::{App, Arg};
 
@@ -168,8 +168,34 @@ fn unique_kmers(text: &[u8], k: u32, rank: &RankTransform) -> usize {
 fn lc_intervals(text: &[u8], q: u32, rank: &RankTransform, threshold: f64, window_size: usize) -> Vec<Interval> {
     let qgrams: Vec<usize> = rank.qgrams(q, text).into_iter().collect();
     let mut intervals: Vec<Interval> = Vec::new();
+    let mut kmers: FnvHashMap<usize, usize> = FnvHashMap::default();
+    // We keep track of the kmer appearing at the beginning of the window (`prev`)
+    // and subtract 1 from its count (or remove it if < 1) when we move on 
+    // to the next window. We add 1 to the count of the newest kmer we see 
+    // (the last in this window).
+    let mut prev: usize = 0;
     for (idx, window) in qgrams.as_slice().windows(window_size).enumerate() {
-        let n_unique = window.into_iter().collect::<FnvHashSet<&usize>>().len();
+        {
+            if idx == 0 {
+                prev = window[0];
+                window.iter().map(|k| {
+                    let n = kmers.entry(*k).or_insert(0);
+                    *n += 1;
+                }).collect::<Vec<()>>();
+            } else {
+                let n = *kmers.get(&prev).unwrap();
+                if n == 1 {
+                    kmers.remove(&prev);
+                } else {
+                    kmers.insert(prev, n-1);
+                }
+                let next = window.last().unwrap();
+                let n = kmers.entry(*next).or_insert(0);
+                *n += 1;
+                prev = window[0];  
+            }
+        }
+        let n_unique = kmers.len();
         let window_complexity = n_unique as f64 / window_size as f64;
         if window_complexity < threshold {
             let start = idx;
