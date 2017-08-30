@@ -49,3 +49,20 @@ kz --mask --threshold 0.7 < seqs.fq
 # Vary window size:
 kz --mask --window_size 64 < seqs.fq
 ```
+
+### Parallelization
+
+I didn't write any parallelization code into this as it's mostly I/O bound. Instead I suggest using [GNU Parallel](https://www.gnu.org/software/parallel/) as follows:
+
+#### FASTQ files
+Use `-L4` to define a record as being four lines. The `-j` parameter defines the number of cores to use, and `--round-robin` passes records to each of the spawned jobs. Any options to `kz` can be specified as normal. _The input order is not maintained using this method._
+
+```sh
+cat <input> | parallel --round_robin -L4 -j<cores> --pipe kz
+```
+
+#### FASTA files
+As above, but the record is now defined using `--recstart '>'`.
+```sh
+cat <input> | parallel --round_robin --recstart '>' -j<cores> --pipe kz --fasta
+```
