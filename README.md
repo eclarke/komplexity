@@ -22,7 +22,7 @@ This tool has two modes: measuring (default) and masking.
 
 ### Measuring
 
-Measuring mode reports the length of a sequence, the number of unique kmers in that sequence, and the normalized complexity (unique kmers / length). As this looks across the entire sequence, it is most appropriate for short reads (e.g. Illumina).
+Measuring mode reports the length of a sequence, the number of unique kmers in that sequence, and the normalized complexity (unique kmers / length). As this looks across the entire sequence, it is most appropriate for short reads (e.g. Illumina), since longer sequences will have low normalized complexity simply due to greater length.
 
 ```sh
 # For fastq files:
@@ -49,6 +49,3 @@ kz --mask --threshold 0.7 < seqs.fq
 # Vary window size:
 kz --mask --window_size 64 < seqs.fq
 ```
-
-## So what?
-
