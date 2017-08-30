@@ -22,7 +22,7 @@ This tool has two modes: measuring (default) and masking.
 
 ### Measuring
 
-Measuring mode reports the length of a sequence, the number of unique kmers in that sequence, and the normalized complexity (unique kmers / length).
+Measuring mode reports the length of a sequence, the number of unique kmers in that sequence, and the normalized complexity (unique kmers / length). As this looks across the entire sequence, it is most appropriate for short reads (e.g. Illumina).
 
 ```sh
 # For fastq files:
