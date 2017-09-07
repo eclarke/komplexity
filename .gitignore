@@ -1,2 +1,5 @@
 target/
 **/*.rs.bk
+*.f[aq]
+*.out
+tasks.json

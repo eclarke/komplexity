@@ -188,12 +188,9 @@ fn unique_kmers(text: &[u8], k: u32, rank: &RankTransform) -> usize {
 }
 
 fn lc_intervals(text: &[u8], q: u32, rank: &RankTransform, threshold: f64, window_size: usize) -> Vec<Interval> {
-    // Bounds checking
-    let q = q as usize;
-
     let mut intervals: Vec<Interval> = Vec::new();
     let mut window: VecDeque<usize> = VecDeque::with_capacity(window_size);
-    let mut kmer_iterator = rank.qgrams(q as u32, text).into_iter();
+    let mut kmer_iterator = rank.qgrams(q, text).into_iter();
     let mut kmers: FnvHashMap<usize, usize> = FnvHashMap::default();
  
     // Init: fill window buffer
