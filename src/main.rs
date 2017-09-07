@@ -5,6 +5,7 @@ extern crate fnv;
 use std::vec::Vec;
 use std::io;
 use std::iter;
+use std::collections::VecDeque;
 
 use bio::alphabets;
 use bio::alphabets::RankTransform;
@@ -125,6 +126,7 @@ enum MaskType {
 fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, window_size: usize, mask_type: MaskType) {
     let alphabet = alphabets::dna::iupac_alphabet();
     let rank = RankTransform::new(&alphabet);
+    
     match record_type {
         RecordType::Fasta => {
             let mut writer = fasta::Writer::new(io::stdout());
@@ -175,7 +177,8 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
 }
 
 fn mask_sequence(seq: &[u8], rank: &RankTransform, k: u32, threshold: f64, window_size: usize, mask_type: &MaskType) -> Vec<u8> {
-    let intervals = lc_intervals(seq, k, rank, threshold, window_size);
+    // let intervals = lc_intervals(seq, k, rank, threshold, window_size);
+    let intervals = lc2(seq, k, rank, threshold, window_size);
     mask_intervals(seq, intervals, mask_type)
 }
 
@@ -185,42 +188,54 @@ fn unique_kmers(text: &[u8], k: u32, rank: &RankTransform) -> usize {
         .len()
 }
 
-fn lc_intervals(text: &[u8], q: u32, rank: &RankTransform, threshold: f64, window_size: usize) -> Vec<Interval> {
-    let qgrams: Vec<usize> = rank.qgrams(q, text).into_iter().collect();
+fn lc2(text: &[u8], q: u32, rank: &RankTransform, threshold: f64, window_size: usize) -> Vec<Interval> {
+    // Bounds checking
+    let q = q as usize;
+
     let mut intervals: Vec<Interval> = Vec::new();
+    let mut window: VecDeque<usize> = VecDeque::with_capacity(window_size);
+    let mut kmer_iterator = rank.qgrams(q as u32, text).into_iter();
     let mut kmers: FnvHashMap<usize, usize> = FnvHashMap::default();
-    // We keep track of the kmer appearing at the beginning of the window (`prev`)
-    // and subtract 1 from its count (or remove it if < 1) when we move on 
-    // to the next window. We add 1 to the count of the newest kmer we see 
-    // (the last in this window).
-    let mut prev: usize = 0;
-    for (idx, window) in qgrams.as_slice().windows(window_size).enumerate() {
-        {
-            if idx == 0 {
-                prev = window[0];
-                window.iter().map(|k| {
-                    let n = kmers.entry(*k).or_insert(0);
-                    *n += 1;
-                }).collect::<Vec<()>>();
-            } else {
-                let n = *kmers.get(&prev).unwrap();
-                if n == 1 {
-                    kmers.remove(&prev);
-                } else {
-                    kmers.insert(prev, n-1);
-                }
-                let next = window.last().unwrap();
-                let n = kmers.entry(*next).or_insert(0);
-                *n += 1;
-                prev = window[0];  
-            }
+ 
+    // Init: fill window buffer
+    for _ in 0..window_size {
+        match kmer_iterator.next() {
+            Some(kmer) => window.push_back(kmer),
+            None => break
         }
-        let n_unique = kmers.len();
-        let window_complexity = n_unique as f64 / window_size as f64;
+    }
+    // Count kmers in window
+    for kmer in window.iter() {
+        let n = kmers.entry(*kmer).or_insert(0);
+        *n += 1;
+    }
+
+    let mut idx = 0;
+    loop {
+        let window_complexity = kmers.len() as f64 / window.len() as f64;
         if window_complexity < threshold {
             let start = idx;
-            let end = idx + (window_size - 1 + q as usize);
+            let end = idx + (window.len() - 1 + q as usize);
             intervals.push(Interval{ start, end });
+        }
+        match kmer_iterator.next() {
+            Some(kmer) => {
+                let prev = window.pop_front().unwrap();
+                window.push_back(kmer);
+                // Update kmer counts: remove 1 from leaving kmer
+                let prev_n = *kmers.get(&prev).unwrap();
+                if prev_n == 1 {
+                    kmers.remove(&prev);
+                } else {
+                    kmers.insert(prev, prev_n-1);
+                }
+                // Update kmer counts: add 1 for entering kmer
+                let next_n = kmers.entry(kmer).or_insert(0);
+                *next_n += 1;
+                // Update index
+                idx += 1;
+            },
+            None => break,
         }
     }
     return collapse_intervals(intervals);
