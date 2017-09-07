@@ -177,8 +177,7 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
 }
 
 fn mask_sequence(seq: &[u8], rank: &RankTransform, k: u32, threshold: f64, window_size: usize, mask_type: &MaskType) -> Vec<u8> {
-    // let intervals = lc_intervals(seq, k, rank, threshold, window_size);
-    let intervals = lc2(seq, k, rank, threshold, window_size);
+    let intervals = lc_intervals(seq, k, rank, threshold, window_size);
     mask_intervals(seq, intervals, mask_type)
 }
 
@@ -188,7 +187,7 @@ fn unique_kmers(text: &[u8], k: u32, rank: &RankTransform) -> usize {
         .len()
 }
 
-fn lc2(text: &[u8], q: u32, rank: &RankTransform, threshold: f64, window_size: usize) -> Vec<Interval> {
+fn lc_intervals(text: &[u8], q: u32, rank: &RankTransform, threshold: f64, window_size: usize) -> Vec<Interval> {
     // Bounds checking
     let q = q as usize;
 
