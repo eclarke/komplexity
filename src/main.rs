@@ -51,6 +51,12 @@ fn main() {
             .short("l")
             .takes_value(false)
             .help("mask using lower-case symbols rather than Ns"))
+        .arg(Arg::with_name("filter")
+            .long("filter")
+            .short("F")
+            .takes_value(false)
+            .help("filter sequences falling below a threshold"))
+
     .get_matches();
 
     let record_type = match args.is_present("fasta") {
@@ -58,10 +64,21 @@ fn main() {
         false => RecordType::Fastq,
     };
 
-    let task = match args.is_present("mask") {
-        true => Task::Mask,
-        false => Task::Measure
+    //TODO: figure out how to get the proper logic out of these 
+
+    let filter_or_mask = (args.is_present("mask") as bool, args.is_present("filter") as bool);
+
+    if filter_or_mask.0 && filter_or_mask.1 {
+        error_exit("cannot filter and mask")
+    }
+
+    let task = match filter_or_mask {
+        (true, false) => Task::Mask,
+        (false, true) => Task::Filter,
+        _ => Task::Measure
     };
+
+    //</TODO>
 
     let mask_type = match args.is_present("lower_case") {
         true => MaskType::LowerCase,
@@ -115,7 +132,8 @@ enum RecordType {
 
 enum Task {
     Mask,
-    Measure
+    Measure,
+    Filter
 }
 
 enum MaskType {
@@ -145,6 +163,15 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
                             let length = seq.len();
                             let kmers = unique_kmers(seq, k, &rank);
                             println!("{}\t{}\t{}\t{}", id, length, kmers, kmers as f64 / length as f64);
+                        },
+                        Task::Filter => {
+                            //TODO
+                            let length = seq.len();
+                            let kmers = unique_kmers(seq, k, &rank);
+                            let sequence_complexity = kmers as f64 / length as f64;
+                            if sequence_complexity > threshold {
+                                writer.write(id, r.desc(), &seq).unwrap(); //is & necessary?
+                            }
                         }
                     } 
                     
@@ -168,6 +195,15 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
                             let length = seq.len();
                             let kmers = unique_kmers(seq, k, &rank);
                             println!("{}\t{}\t{}\t{}", id, length, kmers, kmers as f64 / length as f64);
+                        }
+                        Task::Filter => {
+                            //TODO
+                            let length = seq.len();
+                            let kmers = unique_kmers(seq, k, &rank);
+                            let sequence_complexity = kmers as f64 / length as f64;
+                            if sequence_complexity > threshold {
+                                writer.write(id, r.desc(), &seq, r.qual()).unwrap(); //why &
+                            }
                         }
                     } 
                 })
