@@ -165,7 +165,7 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
                             let kmers = unique_kmers(seq, k, &rank);
                             let sequence_complexity = kmers as f64 / length as f64;
                             if sequence_complexity > threshold {
-                                writer.write(id, r.desc(), &seq).unwrap(); //is & necessary?
+                                writer.write(id, r.desc(), &seq).unwrap();
                             }
                         }
                     } 
@@ -196,7 +196,7 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
                             let kmers = unique_kmers(seq, k, &rank);
                             let sequence_complexity = kmers as f64 / length as f64;
                             if sequence_complexity > threshold {
-                                writer.write(id, r.desc(), &seq, r.qual()).unwrap(); //why &
+                                writer.write(id, r.desc(), &seq, r.qual()).unwrap();
                             }
                         }
                     } 
