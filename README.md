@@ -51,7 +51,7 @@ kz --mask --window_size 64 < seqs.fq
 ```
 ### Filtering
 
-Filtering mode (`--filter`) outputs the input sequences with low-complexity sequences omitted. The threshold below which the sequence is masked is configurable through the `--threshold` parameter and should be a value between 0-1 (least to most masking). Note that this is most useful for Illumina reads or other short sequences as scores will approach 1 for longer sequences. 
+Filtering mode (`--filter`) outputs the input sequences with low-complexity sequences omitted. The threshold below which the sequence is masked is configurable through the `--threshold` parameter and should be a value between 0-1 (least to most masking). Note that this is most useful for Illumina reads or other short sequences, as scores will approach 1 for longer sequences. 
 
 ```sh
 # For fastq files:
