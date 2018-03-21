@@ -49,6 +49,19 @@ kz --mask --threshold 0.7 < seqs.fq
 # Vary window size:
 kz --mask --window_size 64 < seqs.fq
 ```
+### Filtering
+
+Filtering mode (`--filter`) outputs the input sequences with low-complexity sequences omitted. The threshold below which the sequence is masked is configurable through the `--threshold` parameter and should be a value between 0-1 (least to most masking). Note that this is most useful for Illumina reads or other short sequences, as scores will approach 1 for longer sequences. 
+
+```sh
+# For fastq files:
+kz --filter < seqs.fq
+# For fasta files:
+kz --filter --fasta < seqs.fa
+# Vary threshold:
+kz --filter --threshold 0.7 < seqs.fq
+```
+Note that you cannot filter and mask at the same time.
 
 ### Parallelization
 
