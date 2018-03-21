@@ -64,8 +64,6 @@ fn main() {
         false => RecordType::Fastq,
     };
 
-    //TODO: figure out how to get the proper logic out of these 
-
     let filter_or_mask = (args.is_present("mask") as bool, args.is_present("filter") as bool);
 
     if filter_or_mask.0 && filter_or_mask.1 {
@@ -77,8 +75,6 @@ fn main() {
         (false, true) => Task::Filter,
         _ => Task::Measure
     };
-
-    //</TODO>
 
     let mask_type = match args.is_present("lower_case") {
         true => MaskType::LowerCase,
@@ -165,7 +161,6 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
                             println!("{}\t{}\t{}\t{}", id, length, kmers, kmers as f64 / length as f64);
                         },
                         Task::Filter => {
-                            //TODO
                             let length = seq.len();
                             let kmers = unique_kmers(seq, k, &rank);
                             let sequence_complexity = kmers as f64 / length as f64;
@@ -197,7 +192,6 @@ fn complexity(record_type: RecordType, task: Task, k: u32, threshold: f64, windo
                             println!("{}\t{}\t{}\t{}", id, length, kmers, kmers as f64 / length as f64);
                         }
                         Task::Filter => {
-                            //TODO
                             let length = seq.len();
                             let kmers = unique_kmers(seq, k, &rank);
                             let sequence_complexity = kmers as f64 / length as f64;
