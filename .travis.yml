@@ -6,7 +6,7 @@ services:
 - docker
 rust:
 - stable
-before_deploy: "./build-release komplexity ${TRAVIS_TAG}-${TRAVIS_OS_NAME}\n"
+before_deploy: "./build-release kz ${TRAVIS_TAG}-${TRAVIS_OS_NAME}\n"
 deploy:
   provider: releases
   api_key:
