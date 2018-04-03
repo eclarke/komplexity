@@ -1,5 +1,7 @@
 # komplexity
 
+[![Build Status](https://travis-ci.org/eclarke/komplexity.svg?branch=master)](https://travis-ci.org/eclarke/komplexity)
+
 A command-line tool built in Rust to quickly calculate and/or mask low-complexity sequences from a FAST[A/Q] file. This uses the number of unique _k_-mers over a sequence divided by the length to assess complexity.
 
 We've noticed that, for _k_=4, a normalized complexity score of < 0.55 suggests across a 64-120bp region strongly that the sequence is a low-complexity repeat sequence. 
