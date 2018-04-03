@@ -15,6 +15,8 @@ use fnv::{FnvHashSet, FnvHashMap};
 
 use clap::{App, Arg};
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 fn main() {
 
     let args = App::new("kz")
@@ -55,9 +57,18 @@ fn main() {
             .long("filter")
             .short("F")
             .takes_value(false)
-            .help("filter sequences falling below a threshold"))
+             .help("filter sequences falling below a threshold"))
+        .arg(Arg::with_name("version")
+             .long("version")
+             .short("V")
+             .takes_value(false)
+             .help("print version info"))
+        .get_matches();
 
-    .get_matches();
+    if args.is_present("version") {
+        println!("komplexity v{}", VERSION);
+        std::process::exit(0)
+    };
 
     let record_type = match args.is_present("fasta") {
         true => RecordType::Fasta,
