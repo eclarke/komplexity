@@ -6,13 +6,17 @@ services:
 - docker
 rust:
 - stable
-before_deploy: "./build-release kz ${TRAVIS_TAG}-${TRAVIS_OS_NAME}\n"
-deploy:
-  provider: releases
-  api_key:
-    secure: FMfnWWeX/BfktyD2W9kNosKTU8hXHC2zyuDryq5VOMZZZ6WipBQQsTZXo8ddNb5GBrIkKhcpc/duxz4nac3ZCaeSVQ63hv5+4kP1qahxY7851xHdLoo+TrcCRZGIzxOhoPgkK+B0ZlMvSh3EhbFnrbdqpXmOpY8pfeyFouraOiU1yFdTroFAPij4AYSVDuAvj8ZG8MKACvDlIzMh0ODcHz4FzZAAPZvjNiKV+fdb9fqH59kDAS+O2324tLhMk3kRRmPSrgCS5u12HuHA6nihQsO46dm1IdIIxR0goDe8XLJ0bq0gXjWlrvEDt704ZRtmohfa+/V4Wb10AtkVMJvPyc6KCq+7Imd3kVY/QAz8brEIGogjowA9LUN7OqgvU/2q0gJuc76bQTYJp7fv2JfB5q6vxQnpvVQofJhyfUrQNo7s07QbSTHAifWXxtKlsb5XYRmY9k+ILZuSpbWKmY2wCWIozqVCNhTaIr/QJQ5A3RRVwL3kZDpntchyYt1LdvJsbxs9Przr2OJhXjaiOiqboIq+b5nUpKI/WSdwpLzeXgm9RdT7nY5zvRiiG0ZFUqB8azAnm2N8lfD3fw9U5RHpgtYIIVaxHY0Dh+xFKuNZTME57RoSXFW3W41+rXp5KgiTENtC+HC5WcWio1VChG6gQMiEmsD73YI/rf7P2TlbNho=
-  file_glob: true
-  file: "kz-{TRAVIS_TAG}-${TRAVIS_OS_NAME}.*"
-  skip_cleanup: true
-  on:
-    tags: true
+
+jobs:
+  include:
+    - stage: GitHub Release
+      script: echo "Deploying to GitHub release..."
+      before_deploy: "./build-release kz ${TRAVIS_TAG}-${TRAVIS_OS_NAME}\n"
+      deploy:
+        provider: releases
+        api_key:
+          secure: FMfnWWeX/BfktyD2W9kNosKTU8hXHC2zyuDryq5VOMZZZ6WipBQQsTZXo8ddNb5GBrIkKhcpc/duxz4nac3ZCaeSVQ63hv5+4kP1qahxY7851xHdLoo+TrcCRZGIzxOhoPgkK+B0ZlMvSh3EhbFnrbdqpXmOpY8pfeyFouraOiU1yFdTroFAPij4AYSVDuAvj8ZG8MKACvDlIzMh0ODcHz4FzZAAPZvjNiKV+fdb9fqH59kDAS+O2324tLhMk3kRRmPSrgCS5u12HuHA6nihQsO46dm1IdIIxR0goDe8XLJ0bq0gXjWlrvEDt704ZRtmohfa+/V4Wb10AtkVMJvPyc6KCq+7Imd3kVY/QAz8brEIGogjowA9LUN7OqgvU/2q0gJuc76bQTYJp7fv2JfB5q6vxQnpvVQofJhyfUrQNo7s07QbSTHAifWXxtKlsb5XYRmY9k+ILZuSpbWKmY2wCWIozqVCNhTaIr/QJQ5A3RRVwL3kZDpntchyYt1LdvJsbxs9Przr2OJhXjaiOiqboIq+b5nUpKI/WSdwpLzeXgm9RdT7nY5zvRiiG0ZFUqB8azAnm2N8lfD3fw9U5RHpgtYIIVaxHY0Dh+xFKuNZTME57RoSXFW3W41+rXp5KgiTENtC+HC5WcWio1VChG6gQMiEmsD73YI/rf7P2TlbNho=
+        file: "kz-${TRAVIS_TAG}-${TRAVIS_OS_NAME}.zip"
+        skip_cleanup: true
+        on:
+          tags: true
