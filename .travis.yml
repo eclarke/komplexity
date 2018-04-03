@@ -9,6 +9,7 @@ rust:
 
 jobs:
   include:
+    - script: echo "Testing build..."
     - stage: GitHub Release
       script: echo "Deploying to GitHub release..."
       before_deploy: "./build-release kz ${TRAVIS_TAG}-${TRAVIS_OS_NAME}\n"
