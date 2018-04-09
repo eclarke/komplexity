@@ -16,6 +16,11 @@ cd komplexity
 cargo install
 ```
 
+Or, using Conda:
+```sh
+conda install -c eclarke komplexity
+```
+
 If Cargo's default bin directory is in your path (usually `$HOME/.cargo/bin`), you can run this by just typing `kz`.
 
 ## Usage
